@@ -56,6 +56,10 @@ func (*formSerializer) Marshal(obj interface{}) ([]byte, error) {
 	}
 	var values = url.Values{}
 	for k, v := range kv {
+		if v == nil {
+			values.Set(k, "")
+			continue
+		}
 		if t := reflect.TypeOf(v).Kind(); t == reflect.Map || t == reflect.Struct {
 			continue
 		}
