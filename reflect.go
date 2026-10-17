@@ -129,7 +129,9 @@ func (p *param) loadFromBytes(body []byte, serializer Serializer) (*reflect.Valu
 func (p *param) loadFromValues(queries url.Values) (*reflect.Value, error) {
 	obj, callback := createObj(p.Type)
 	if len(queries) > 0 {
-		setObj(obj, queries)
+		if err := setObj(obj, queries); err != nil {
+			return nil, err
+		}
 		obj = callback(obj)
 	} else {
 		obj = callback(obj)
@@ -137,15 +139,17 @@ func (p *param) loadFromValues(queries url.Values) (*reflect.Value, error) {
 	return &obj, nil
 }
 
-func setObj(value reflect.Value, queries url.Values) {
+func setObj(value reflect.Value, queries url.Values) error {
 	t := value.Type()
 	if t.Kind() != reflect.Struct {
-		return
+		return nil
 	}
 	for i := 0; i < value.NumField(); i++ {
 		field := value.Field(i)
 		if field.Kind() == reflect.Struct {
-			setObj(field, queries)
+			if err := setObj(field, queries); err != nil {
+				return err
+			}
 			continue
 		}
 		if field.CanSet() {
@@ -157,7 +161,9 @@ func setObj(value reflect.Value, queries url.Values) {
 		detect:
 			if len(name) > 0 && name != "-" {
 				if _, existed := (map[string][]string)(queries)[name]; existed {
-					setValue(field, queries.Get(name))
+					if err := setValue(field, queries.Get(name)); err != nil {
+						return err
+					}
 				} else if lower := strings.ToLower(name); lower != name {
 					name = lower
 					goto detect
@@ -165,6 +171,7 @@ func setObj(value reflect.Value, queries url.Values) {
 			}
 		}
 	}
+	return nil
 }
 
 // createObj Create writable object and return a function which can set back to actual type
@@ -190,19 +197,32 @@ func setValue(value reflect.Value, data string) (err error) {
 		value.SetString(data)
 		break
 	case reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64:
-		val, _ := strconv.ParseInt(data, 10, 64)
+		val, err := strconv.ParseInt(data, 10, value.Type().Bits())
+		if err != nil {
+			return err
+		}
 		value.SetInt(val)
 		break
 	case reflect.Uint, reflect.Uint32, reflect.Uint64, reflect.Uint8, reflect.Uint16:
-		val, _ := strconv.ParseUint(data, 10, 64)
+		val, err := strconv.ParseUint(data, 10, value.Type().Bits())
+		if err != nil {
+			return err
+		}
 		value.SetUint(val)
 		break
 	case reflect.Float32, reflect.Float64:
-		val, _ := strconv.ParseFloat(data, 64)
+		val, err := strconv.ParseFloat(data, value.Type().Bits())
+		if err != nil {
+			return err
+		}
 		value.SetFloat(val)
 		break
 	case reflect.Bool:
-		value.SetBool(strings.ToLower(data) == "true")
+		val, err := strconv.ParseBool(data)
+		if err != nil {
+			return err
+		}
+		value.SetBool(val)
 		break
 	case reflect.Array:
 		return setArray(value, strings.Split(data, ","))
