@@ -46,17 +46,15 @@ func SetupRecoveryHandler(handler ...func(string, string) string) (r *Recovery) 
 
 // Invoke 中间件调用约定
 func (r *Recovery) Invoke(ctx *webapi.Context, next webapi.HTTPHandler) {
-	if r.recoveryCollector == nil {
-		r.recoveryCollector = defaultRecoveryCollector
+	collector := r.recoveryCollector
+	if collector == nil {
+		collector = defaultRecoveryCollector
 	}
 	defer func() {
 		if err := recover(); err != nil {
 			panicInfo := fmt.Sprintf("%v", err)
 			stack := string(r.stack(3))
-			if r.recoveryCollector == nil {
-				return
-			}
-			if replyMsg := r.recoveryCollector(panicInfo, stack); len(replyMsg) > 0 {
+			if replyMsg := collector(panicInfo, stack); len(replyMsg) > 0 {
 				ctx.Reply(http.StatusInternalServerError, replyMsg, false)
 				return
 			}
