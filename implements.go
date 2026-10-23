@@ -70,7 +70,10 @@ func (*formSerializer) Marshal(obj interface{}) ([]byte, error) {
 
 func (*formSerializer) Unmarshal(src []byte, obj interface{}) error {
 	val := reflect.ValueOf(obj)
-	if val.Type().Kind() == reflect.Struct || !val.Elem().CanSet() {
+	if !val.IsValid() {
+		return errors.New("destination must be a writable pointer")
+	}
+	if val.Kind() != reflect.Ptr || !val.Elem().CanSet() {
 		return errors.New("type " + val.Type().String() + " is readonly")
 	}
 	values, err := url.ParseQuery(string(src))

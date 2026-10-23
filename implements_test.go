@@ -24,6 +24,24 @@ func TestFormSerializerMarshalNilValue(t *testing.T) {
 	}
 }
 
+func TestFormSerializerUnmarshalRejectsInvalidDestinations(t *testing.T) {
+	tests := []struct {
+		name string
+		dest interface{}
+	}{
+		{"nil", nil},
+		{"non-pointer", 0},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := (&formSerializer{}).Unmarshal([]byte("value=1"), test.dest); err == nil {
+				t.Fatal("Unmarshal() error = nil; want invalid destination error")
+			}
+		})
+	}
+}
+
 func TestLoadFromValuesRejectsInvalidNumbersAndBooleans(t *testing.T) {
 	tests := []struct {
 		name string
